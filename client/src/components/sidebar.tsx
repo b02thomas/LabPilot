@@ -10,6 +10,7 @@ import {
   FlaskConical,
   LogOut
 } from "lucide-react";
+import logoImage from "@assets/Gemini_Generated_Image_cbisuycbisuycbis_1758200138344.png";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: ChartLine },
@@ -27,11 +28,15 @@ export function Sidebar() {
     <aside className="w-64 bg-card border-r border-border flex-shrink-0 flex flex-col h-screen">
       <div className="p-6 border-b border-border">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <FlaskConical className="h-4 w-4 text-primary-foreground" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden">
+            <img 
+              src={logoImage} 
+              alt="LabPilot Logo" 
+              className="w-full h-full object-cover"
+            />
           </div>
           <div>
-            <h1 className="text-lg font-semibold">Chem-Base</h1>
+            <h1 className="text-lg font-semibold">LabPilot</h1>
             <p className="text-xs text-muted-foreground">Lab Analysis Platform</p>
           </div>
         </div>
