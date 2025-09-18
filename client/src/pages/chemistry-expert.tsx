@@ -177,7 +177,7 @@ export default function AgentChatHub() {
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-muted-foreground">Agent:</span>
                 <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                  <SelectTrigger className="w-40" data-testid="select-agent">
+                  <SelectTrigger className="w-52" data-testid="select-agent">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="w-80">
