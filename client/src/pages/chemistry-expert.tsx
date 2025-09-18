@@ -1,125 +1,302 @@
+import { useState, useEffect, useRef } from "react";
 import { Sidebar } from "@/components/sidebar";
-import { Header } from "@/components/header";
-import { ChemistryChat } from "@/components/chemistry-chat";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bot, TrendingUp, AlertTriangle, Lightbulb } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  Send, 
+  Bot, 
+  User, 
+  Paperclip, 
+  ChevronDown, 
+  Beaker, 
+  BarChart3, 
+  ClipboardCheck,
+  Shield
+} from "lucide-react";
 
-export default function ChemistryExpert() {
-  const { data: insights } = useQuery({
-    queryKey: ["/api/analysis/insights"],
-    staleTime: 300000, // 5 minutes
+interface ChatMessage {
+  id: string;
+  userId: string;
+  projectId?: string;
+  agentType: 'chemistry_expert' | 'data_agent' | 'lab_assistant' | 'quality_control';
+  message: string;
+  response?: string;
+  attachments?: Array<{
+    fileName: string;
+    fileUrl: string;
+    fileType: string;
+    fileSize: number;
+  }>;
+  context?: any;
+  createdAt: string;
+}
+
+const agentTypes = [
+  { 
+    value: 'chemistry_expert', 
+    label: 'Chemistry Expert', 
+    icon: Beaker,
+    description: 'Analytical chemistry and lab expertise'
+  },
+  { 
+    value: 'data_agent', 
+    label: 'Data Agent', 
+    icon: BarChart3,
+    description: 'Data analysis and statistical insights'
+  },
+  { 
+    value: 'lab_assistant', 
+    label: 'Lab Assistant', 
+    icon: ClipboardCheck,
+    description: 'Protocol guidance and troubleshooting'
+  },
+  { 
+    value: 'quality_control', 
+    label: 'Quality Control', 
+    icon: Shield,
+    description: 'QC standards and compliance'
+  }
+];
+
+export default function AgentChatHub() {
+  const [message, setMessage] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState<'chemistry_expert' | 'data_agent' | 'lab_assistant' | 'quality_control'>('chemistry_expert');
+  const [selectedProject, setSelectedProject] = useState<string>('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Query chat messages based on project and agent
+  const { data: messages = [], isLoading } = useQuery({
+    queryKey: ["/api/chat/messages", selectedProject, selectedAgent],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        userId: 'user-1',
+        agentType: selectedAgent
+      });
+      
+      if (selectedProject && selectedProject !== "none") {
+        params.append('projectId', selectedProject);
+      }
+      
+      const response = await fetch(`/api/chat/messages?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch messages');
+      }
+      return response.json();
+    },
+    refetchInterval: 5000,
   });
 
-  const quickQuestions = [
-    "What does a pH flag in my sample mean?",
-    "How do I interpret chromatography peaks?",
-    "What causes baseline drift in spectroscopy?",
-    "How can I improve my sample preparation?",
-    "What are normal concentration ranges?",
-    "How do I troubleshoot contamination issues?",
-  ];
+  // Query projects for dropdown
+  const { data: projects = [] } = useQuery({
+    queryKey: ["/api/projects"],
+  });
 
-  const handleQuickQuestion = (question: string) => {
-    // This would trigger the chat input - for now just scroll to chat
-    const chatInput = document.querySelector('[data-testid="input-chat-message"]') as HTMLInputElement;
-    if (chatInput) {
-      chatInput.value = question;
-      chatInput.focus();
+  const sendMessageMutation = useMutation({
+    mutationFn: async (message: string) => {
+      const response = await apiRequest('POST', '/api/chat/messages', {
+        message,
+        userId: 'user-1',
+        projectId: selectedProject === "none" ? null : selectedProject || null,
+        agentType: selectedAgent
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      setMessage("");
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/messages"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to send message",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (message.trim() && !sendMessageMutation.isPending) {
+      sendMessageMutation.mutate(message.trim());
     }
   };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const currentAgent = agentTypes.find(agent => agent.value === selectedAgent);
+  const AgentIcon = currentAgent?.icon || Bot;
 
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
       
-      <main className="flex-1 overflow-auto">
-        <Header
-          title="Chemistry Expert"
-          description="Get AI-powered insights and answers to your chemistry questions"
-        />
-
-        <div className="p-6 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Chemistry Chat - takes up 2 columns */}
-            <div className="lg:col-span-2">
-              <div className="h-[600px]">
-                <ChemistryChat />
+      {/* Full-screen chat interface */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Header with agent and project selectors */}
+        <div className="border-b border-border bg-card px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <AgentIcon className="h-6 w-6 text-primary" />
+                <h1 className="text-xl font-semibold">Agent Chat Hub</h1>
               </div>
             </div>
+            
+            <div className="flex items-center space-x-4">
+              {/* Project Selector */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Project:</span>
+                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                  <SelectTrigger className="w-48" data-testid="select-project">
+                    <SelectValue placeholder="Select project..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project</SelectItem>
+                    {projects.map((project: any) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Sidebar with insights and quick questions */}
-            <div className="space-y-6">
-              {/* Analysis Insights */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center text-lg">
-                    <TrendingUp className="h-5 w-5 mr-2 text-primary" />
-                    Recent Insights
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {insights?.insights ? (
-                    <div className="text-sm text-muted-foreground">
-                      {insights.insights}
+              {/* Agent Selector */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Agent:</span>
+                <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                  <SelectTrigger className="w-56" data-testid="select-agent">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agentTypes.map((agent) => {
+                      const Icon = agent.icon;
+                      return (
+                        <SelectItem key={agent.value} value={agent.value}>
+                          <div className="flex items-center space-x-2">
+                            <Icon className="h-4 w-4" />
+                            <div>
+                              <div className="font-medium">{agent.label}</div>
+                              <div className="text-xs text-muted-foreground">{agent.description}</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Chat Messages Area */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="max-w-4xl mx-auto space-y-6">
+            {isLoading ? (
+              <div className="text-center text-muted-foreground">Loading conversation...</div>
+            ) : messages.length === 0 ? (
+              <div className="text-center space-y-4 py-12">
+                <div className="flex justify-center">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                    <AgentIcon className="h-8 w-8 text-primary" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Start a conversation with {currentAgent?.label}</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    {currentAgent?.description}. Ask questions, upload files, or start analyzing your data.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              messages.map((msg: ChatMessage) => (
+                <div key={msg.id} className="space-y-4">
+                  {/* User Message */}
+                  <div className="flex justify-end">
+                    <div className="flex items-start space-x-3 max-w-2xl">
+                      <div className="bg-primary text-primary-foreground rounded-2xl px-4 py-3">
+                        <p className="text-sm">{msg.message}</p>
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {msg.attachments.map((attachment, index) => (
+                              <div key={index} className="flex items-center space-x-2 text-xs bg-primary-foreground/20 rounded px-2 py-1">
+                                <Paperclip className="h-3 w-3" />
+                                <span>{attachment.fileName}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="h-4 w-4" />
+                      </div>
                     </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">
-                      Upload more analysis data to get AI-generated insights about trends and patterns.
+                  </div>
+                  
+                  {/* Agent Response */}
+                  {msg.response && (
+                    <div className="flex justify-start">
+                      <div className="flex items-start space-x-3 max-w-2xl">
+                        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                          <AgentIcon className="h-4 w-4 text-primary-foreground" />
+                        </div>
+                        <div className="bg-muted rounded-2xl px-4 py-3">
+                          <p className="text-sm whitespace-pre-wrap">{msg.response}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
 
-              {/* Quick Questions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center text-lg">
-                    <Lightbulb className="h-5 w-5 mr-2 text-primary" />
-                    Quick Questions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {quickQuestions.map((question, index) => (
-                    <Button
-                      key={index}
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-left justify-start h-auto p-2 text-xs"
-                      onClick={() => handleQuickQuestion(question)}
-                      data-testid={`button-quick-question-${index}`}
-                    >
-                      {question}
-                    </Button>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* Help & Tips */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center text-lg">
-                    <Bot className="h-5 w-5 mr-2 text-primary" />
-                    Tips for Better Results
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm text-muted-foreground">
-                  <div className="flex items-start space-x-2">
-                    <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                    <p>Be specific about your sample type and experimental conditions for more accurate advice.</p>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <Lightbulb className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                    <p>Reference specific data points or analysis results when asking questions.</p>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <Bot className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    <p>The AI has knowledge of chromatography, spectroscopy, and general analytical chemistry.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+        {/* Chat Input */}
+        <div className="border-t border-border bg-card px-6 py-4">
+          <div className="max-w-4xl mx-auto">
+            <form onSubmit={handleSubmit} className="flex items-center space-x-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-shrink-0"
+                data-testid="button-attach-file"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <Input
+                type="text"
+                placeholder={`Ask ${currentAgent?.label} anything...`}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                disabled={sendMessageMutation.isPending}
+                className="flex-1"
+                data-testid="input-chat-message"
+              />
+              <Button 
+                type="submit" 
+                disabled={!message.trim() || sendMessageMutation.isPending}
+                size="sm"
+                data-testid="button-send-message"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
           </div>
         </div>
       </main>

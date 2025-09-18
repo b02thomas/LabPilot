@@ -267,13 +267,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Chemistry Expert Chat
+  // Agent Chat Hub
   app.get("/api/chat/messages", async (req, res) => {
     try {
       const userId = req.query.userId as string || "user-1";
+      const projectId = req.query.projectId as string;
+      const agentType = req.query.agentType as string;
       const limit = parseInt(req.query.limit as string) || 50;
       
-      const messages = await storage.getChatMessages(userId, limit);
+      const messages = await storage.getChatMessages(userId, projectId, agentType, limit);
       res.json(messages.reverse()); // Return in chronological order
     } catch (error) {
       console.error("Error fetching chat messages:", error);
@@ -284,21 +286,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat/messages", async (req, res) => {
     try {
       const userId = req.body.userId || "user-1";
-      const { message } = req.body;
+      const { message, projectId, agentType = 'chemistry_expert', attachments } = req.body;
 
       if (!message) {
         return res.status(400).json({ message: "Message is required" });
       }
 
-      // Get chemistry expert response
-      const response = await chemistryExpertService.answerChemistryQuestion(message);
+      // Get agent response based on agent type
+      let response: string;
+      switch (agentType) {
+        case 'chemistry_expert':
+          response = await chemistryExpertService.answerChemistryQuestion(message);
+          break;
+        case 'data_agent':
+          response = `Data Agent: Analyzing your request "${message}". This would include statistical analysis and data visualization insights.`;
+          break;
+        case 'lab_assistant':
+          response = `Lab Assistant: For "${message}", I recommend following standard lab protocols and safety procedures.`;
+          break;
+        case 'quality_control':
+          response = `Quality Control Agent: Regarding "${message}", let me check compliance standards and QC procedures.`;
+          break;
+        default:
+          response = await chemistryExpertService.answerChemistryQuestion(message);
+      }
 
       // Save chat message
       const chatMessage = await storage.createChatMessage(
         insertChatMessageSchema.parse({
           userId,
+          projectId: projectId || null,
+          agentType,
           message,
           response,
+          attachments: attachments || null,
           context: {}
         })
       );
@@ -328,6 +349,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating insights:", error);
       res.status(500).json({ message: "Failed to generate insights" });
+    }
+  });
+
+  // Projects API
+  app.get("/api/projects", async (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const projects = await storage.getProjects(userId, limit);
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  app.post("/api/projects", async (req, res) => {
+    try {
+      const { name, description, createdBy, teamMembers } = req.body;
+
+      if (!name || !createdBy) {
+        return res.status(400).json({ message: "Name and createdBy are required" });
+      }
+
+      const project = await storage.createProject({
+        name,
+        description,
+        createdBy,
+        teamMembers: teamMembers || []
+      });
+
+      res.json({ message: "Project created successfully", project });
+    } catch (error) {
+      console.error("Error creating project:", error);
+      res.status(500).json({ message: "Failed to create project" });
     }
   });
 

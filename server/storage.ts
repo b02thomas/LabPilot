@@ -1,5 +1,6 @@
 import {
   users,
+  projects,
   experiments,
   reports,
   tasks,
@@ -7,6 +8,8 @@ import {
   auditLogs,
   type User,
   type InsertUser,
+  type Project,
+  type InsertProject,
   type Experiment,
   type InsertExperiment,
   type Report,
@@ -27,6 +30,11 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User>;
   
+  // Project operations
+  getProjects(userId?: string, limit?: number): Promise<Project[]>;
+  createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: string, project: Partial<InsertProject>): Promise<Project>;
+  
   // Experiment operations
   getExperiment(id: string): Promise<Experiment | undefined>;
   getExperiments(userId?: string, limit?: number): Promise<Experiment[]>;
@@ -44,7 +52,7 @@ export interface IStorage {
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task>;
   
   // Chat operations
-  getChatMessages(userId: string, limit?: number): Promise<ChatMessage[]>;
+  getChatMessages(userId: string, projectId?: string, agentType?: string, limit?: number): Promise<ChatMessage[]>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   
   // Audit operations
@@ -77,6 +85,30 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user;
+  }
+
+  async getProjects(userId?: string, limit = 50): Promise<Project[]> {
+    let query = db.select().from(projects).orderBy(desc(projects.createdAt));
+    
+    if (userId) {
+      query = query.where(eq(projects.createdBy, userId));
+    }
+    
+    return await query.limit(limit);
+  }
+
+  async createProject(projectData: InsertProject): Promise<Project> {
+    const [project] = await db.insert(projects).values(projectData).returning();
+    return project;
+  }
+
+  async updateProject(id: string, projectData: Partial<InsertProject>): Promise<Project> {
+    const [project] = await db
+      .update(projects)
+      .set({ ...projectData, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return project;
   }
 
   async getExperiment(id: string): Promise<Experiment | undefined> {
@@ -161,11 +193,36 @@ export class DatabaseStorage implements IStorage {
     return task;
   }
 
-  async getChatMessages(userId: string, limit = 50): Promise<ChatMessage[]> {
-    return await db
+  async getChatMessages(
+    userId: string, 
+    projectId?: string, 
+    agentType?: string, 
+    limit = 50
+  ): Promise<ChatMessage[]> {
+    let query = db
       .select()
       .from(chatMessages)
-      .where(eq(chatMessages.userId, userId))
+      .where(eq(chatMessages.userId, userId));
+
+    if (projectId) {
+      query = query.where(and(eq(chatMessages.userId, userId), eq(chatMessages.projectId, projectId)));
+    }
+
+    if (agentType) {
+      query = query.where(and(eq(chatMessages.userId, userId), eq(chatMessages.agentType, agentType as any)));
+    }
+
+    if (projectId && agentType) {
+      query = query.where(
+        and(
+          eq(chatMessages.userId, userId),
+          eq(chatMessages.projectId, projectId),
+          eq(chatMessages.agentType, agentType as any)
+        )
+      );
+    }
+
+    return await query
       .orderBy(desc(chatMessages.createdAt))
       .limit(limit);
   }
