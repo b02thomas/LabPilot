@@ -181,17 +181,14 @@ export default function AgentChatHub() {
                   <SelectTrigger className="w-52" data-testid="select-agent">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="w-auto min-w-80 max-w-96">
+                  <SelectContent className="w-auto min-w-48">
                     {agentTypes.map((agent) => {
                       const Icon = agent.icon;
                       return (
-                        <SelectItem key={agent.value} value={agent.value} className="py-3">
-                          <div className="flex items-center space-x-3 w-full">
-                            <Icon className="h-5 w-5 flex-shrink-0 text-primary" />
-                            <div className="flex-1 min-w-0 text-left">
-                              <div className="font-medium text-sm leading-tight truncate">{agent.label}</div>
-                              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{agent.description}</div>
-                            </div>
+                        <SelectItem key={agent.value} value={agent.value} className="py-2">
+                          <div className="flex items-center space-x-2">
+                            <Icon className="h-4 w-4 flex-shrink-0 text-primary" />
+                            <span className="font-medium text-sm">{agent.label}</span>
                           </div>
                         </SelectItem>
                       );
