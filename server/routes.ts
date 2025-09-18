@@ -6,7 +6,7 @@ import path from "path";
 import fs from "fs";
 import { fileParserService } from "./services/fileParser";
 import { chemistryExpertService } from "./services/openai";
-import { insertExperimentSchema, insertTaskSchema, insertChatMessageSchema } from "@shared/schema";
+import { insertExperimentSchema, insertTaskSchema, insertChatMessageSchema, insertProjectSchema } from "@shared/schema";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -127,8 +127,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateExperiment(experiment.id, {
             status: 'failed',
             metadata: {
-              ...experiment.metadata,
-              error: error.message
+              ...(experiment.metadata || {}),
+              error: error instanceof Error ? error.message : String(error)
             }
           });
         }
@@ -150,9 +150,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/experiments", async (req, res) => {
     try {
       const userId = req.query.userId as string;
+      const projectId = req.query.projectId as string;
       const limit = parseInt(req.query.limit as string) || 50;
       
-      const experiments = await storage.getExperiments(userId, limit);
+      const experiments = await storage.getExperiments(userId, projectId, limit);
       res.json(experiments);
     } catch (error) {
       console.error("Error fetching experiments:", error);
@@ -226,9 +227,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tasks", async (req, res) => {
     try {
       const userId = req.query.userId as string;
+      const projectId = req.query.projectId as string;
       const limit = parseInt(req.query.limit as string) || 50;
       
-      const tasks = await storage.getTasks(userId, limit);
+      const tasks = await storage.getTasks(userId, projectId, limit);
       res.json(tasks);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -342,7 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.query.userId as string;
       const timeframe = req.query.timeframe as string || "recent";
       
-      const experiments = await storage.getExperiments(userId, 20);
+      const experiments = await storage.getExperiments(userId, undefined, 20);
       const insights = await chemistryExpertService.generateAnalysisInsights(experiments, timeframe);
       
       res.json({ insights });
@@ -374,17 +376,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Name and createdBy are required" });
       }
 
-      const project = await storage.createProject({
+      const projectData = insertProjectSchema.parse({
         name,
         description,
         createdBy,
         teamMembers: teamMembers || []
       });
 
+      const project = await storage.createProject(projectData);
+
       res.json({ message: "Project created successfully", project });
     } catch (error) {
       console.error("Error creating project:", error);
       res.status(500).json({ message: "Failed to create project" });
+    }
+  });
+
+  app.get("/api/projects/:id", async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      res.status(500).json({ message: "Failed to fetch project" });
+    }
+  });
+
+  app.patch("/api/projects/:id", async (req, res) => {
+    try {
+      const updateData = insertProjectSchema.partial().parse(req.body);
+      const project = await storage.updateProject(req.params.id, updateData);
+      res.json({ message: "Project updated successfully", project });
+    } catch (error) {
+      console.error("Error updating project:", error);
+      res.status(500).json({ message: "Failed to update project" });
+    }
+  });
+
+  app.delete("/api/projects/:id", async (req, res) => {
+    try {
+      await storage.deleteProject(req.params.id);
+      res.json({ message: "Project deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ message: "Failed to delete project" });
     }
   });
 

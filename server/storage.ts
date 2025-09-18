@@ -31,13 +31,15 @@ export interface IStorage {
   updateUser(id: string, user: Partial<InsertUser>): Promise<User>;
   
   // Project operations
+  getProject(id: string): Promise<Project | undefined>;
   getProjects(userId?: string, limit?: number): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project>;
+  deleteProject(id: string): Promise<void>;
   
   // Experiment operations
   getExperiment(id: string): Promise<Experiment | undefined>;
-  getExperiments(userId?: string, limit?: number): Promise<Experiment[]>;
+  getExperiments(userId?: string, projectId?: string, limit?: number): Promise<Experiment[]>;
   createExperiment(experiment: InsertExperiment): Promise<Experiment>;
   updateExperiment(id: string, experiment: Partial<InsertExperiment>): Promise<Experiment>;
   
@@ -47,7 +49,7 @@ export interface IStorage {
   
   // Task operations
   getTask(id: string): Promise<Task | undefined>;
-  getTasks(userId?: string, limit?: number): Promise<Task[]>;
+  getTasks(userId?: string, projectId?: string, limit?: number): Promise<Task[]>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task>;
   
@@ -87,14 +89,22 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getProject(id: string): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project;
+  }
+
   async getProjects(userId?: string, limit = 50): Promise<Project[]> {
-    let query = db.select().from(projects).orderBy(desc(projects.createdAt));
-    
     if (userId) {
-      query = query.where(eq(projects.createdBy, userId));
+      return await db.select().from(projects)
+        .where(eq(projects.createdBy, userId))
+        .orderBy(desc(projects.createdAt))
+        .limit(limit);
     }
     
-    return await query.limit(limit);
+    return await db.select().from(projects)
+      .orderBy(desc(projects.createdAt))
+      .limit(limit);
   }
 
   async createProject(projectData: InsertProject): Promise<Project> {
@@ -111,6 +121,10 @@ export class DatabaseStorage implements IStorage {
     return project;
   }
 
+  async deleteProject(id: string): Promise<void> {
+    await db.delete(projects).where(eq(projects.id, id));
+  }
+
   async getExperiment(id: string): Promise<Experiment | undefined> {
     const [experiment] = await db
       .select()
@@ -119,14 +133,27 @@ export class DatabaseStorage implements IStorage {
     return experiment;
   }
 
-  async getExperiments(userId?: string, limit = 50): Promise<Experiment[]> {
-    let query = db.select().from(experiments).orderBy(desc(experiments.createdAt));
+  async getExperiments(userId?: string, projectId?: string, limit = 50): Promise<Experiment[]> {
+    let conditions = [];
     
     if (userId) {
-      query = query.where(eq(experiments.uploadedBy, userId));
+      conditions.push(eq(experiments.uploadedBy, userId));
     }
     
-    return await query.limit(limit);
+    if (projectId) {
+      conditions.push(eq(experiments.projectId, projectId));
+    }
+    
+    if (conditions.length > 0) {
+      return await db.select().from(experiments)
+        .where(and(...conditions))
+        .orderBy(desc(experiments.createdAt))
+        .limit(limit);
+    }
+    
+    return await db.select().from(experiments)
+      .orderBy(desc(experiments.createdAt))
+      .limit(limit);
   }
 
   async createExperiment(experimentData: InsertExperiment): Promise<Experiment> {
@@ -155,7 +182,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createReport(reportData: InsertReport): Promise<Report> {
-    const [report] = await db.insert(reports).values(reportData).returning();
+    const [report] = await db.insert(reports).values([reportData]).returning();
     return report;
   }
 
@@ -164,11 +191,11 @@ export class DatabaseStorage implements IStorage {
     return task;
   }
 
-  async getTasks(userId?: string, limit = 50): Promise<Task[]> {
-    let query = db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  async getTasks(userId?: string, projectId?: string, limit = 50): Promise<Task[]> {
+    let conditions = [];
     
     if (userId) {
-      query = query.where(
+      conditions.push(
         or(
           eq(tasks.requestedBy, userId),
           eq(tasks.assignedTo, userId)
@@ -176,7 +203,20 @@ export class DatabaseStorage implements IStorage {
       );
     }
     
-    return await query.limit(limit);
+    if (projectId) {
+      conditions.push(eq(tasks.projectId, projectId));
+    }
+    
+    if (conditions.length > 0) {
+      return await db.select().from(tasks)
+        .where(and(...conditions))
+        .orderBy(desc(tasks.createdAt))
+        .limit(limit);
+    }
+    
+    return await db.select().from(tasks)
+      .orderBy(desc(tasks.createdAt))
+      .limit(limit);
   }
 
   async createTask(taskData: InsertTask): Promise<Task> {
@@ -199,30 +239,20 @@ export class DatabaseStorage implements IStorage {
     agentType?: string, 
     limit = 50
   ): Promise<ChatMessage[]> {
-    let query = db
-      .select()
-      .from(chatMessages)
-      .where(eq(chatMessages.userId, userId));
+    let conditions = [eq(chatMessages.userId, userId)];
 
     if (projectId) {
-      query = query.where(and(eq(chatMessages.userId, userId), eq(chatMessages.projectId, projectId)));
+      conditions.push(eq(chatMessages.projectId, projectId));
     }
 
     if (agentType) {
-      query = query.where(and(eq(chatMessages.userId, userId), eq(chatMessages.agentType, agentType as any)));
+      conditions.push(eq(chatMessages.agentType, agentType as any));
     }
 
-    if (projectId && agentType) {
-      query = query.where(
-        and(
-          eq(chatMessages.userId, userId),
-          eq(chatMessages.projectId, projectId),
-          eq(chatMessages.agentType, agentType as any)
-        )
-      );
-    }
-
-    return await query
+    return await db
+      .select()
+      .from(chatMessages)
+      .where(and(...conditions))
       .orderBy(desc(chatMessages.createdAt))
       .limit(limit);
   }
@@ -230,7 +260,7 @@ export class DatabaseStorage implements IStorage {
   async createChatMessage(messageData: InsertChatMessage): Promise<ChatMessage> {
     const [message] = await db
       .insert(chatMessages)
-      .values(messageData)
+      .values([messageData])
       .returning();
     return message;
   }
