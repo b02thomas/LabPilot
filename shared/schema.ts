@@ -56,6 +56,7 @@ export const experiments = pgTable("experiments", {
   analysisType: analysisTypeEnum("analysis_type").notNull(),
   status: analysisStatusEnum("status").notNull().default('pending'),
   uploadedBy: varchar("uploaded_by").notNull().references(() => users.id),
+  projectId: varchar("project_id").references(() => projects.id),
   rawData: jsonb("raw_data"),
   processedData: jsonb("processed_data"),
   metadata: jsonb("metadata"),
@@ -91,6 +92,7 @@ export const tasks = pgTable("tasks", {
   status: taskStatusEnum("status").notNull().default('submitted'),
   requestedBy: varchar("requested_by").notNull().references(() => users.id),
   assignedTo: varchar("assigned_to").references(() => users.id),
+  projectId: varchar("project_id").references(() => projects.id),
   deadline: timestamp("deadline"),
   notificationRecipients: text("notification_recipients").array(),
   experimentId: varchar("experiment_id").references(() => experiments.id),
@@ -146,12 +148,18 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     references: [users.id],
   }),
   chatMessages: many(chatMessages),
+  experiments: many(experiments),
+  tasks: many(tasks),
 }));
 
 export const experimentsRelations = relations(experiments, ({ one, many }) => ({
   uploadedBy: one(users, {
     fields: [experiments.uploadedBy],
     references: [users.id],
+  }),
+  project: one(projects, {
+    fields: [experiments.projectId],
+    references: [projects.id],
   }),
   reports: many(reports),
   tasks: many(tasks),
@@ -174,6 +182,10 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
     fields: [tasks.assignedTo],
     references: [users.id],
     relationName: "assignedTasks",
+  }),
+  project: one(projects, {
+    fields: [tasks.projectId],
+    references: [projects.id],
   }),
   experiment: one(experiments, {
     fields: [tasks.experimentId],
