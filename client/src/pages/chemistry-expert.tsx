@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Project } from "@shared/schema";
 import { 
   Send, 
   Bot, 
@@ -93,7 +94,7 @@ export default function AgentChatHub() {
   });
 
   // Query projects for dropdown
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
 
@@ -164,7 +165,7 @@ export default function AgentChatHub() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No project</SelectItem>
-                    {projects.map((project: any) => (
+                    {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}
                       </SelectItem>
@@ -176,20 +177,20 @@ export default function AgentChatHub() {
               {/* Agent Selector */}
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-muted-foreground">Agent:</span>
-                <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                <Select value={selectedAgent} onValueChange={(value) => setSelectedAgent(value as typeof selectedAgent)}>
                   <SelectTrigger className="w-52" data-testid="select-agent">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="w-80">
+                  <SelectContent className="w-auto min-w-80 max-w-96">
                     {agentTypes.map((agent) => {
                       const Icon = agent.icon;
                       return (
                         <SelectItem key={agent.value} value={agent.value} className="py-3">
-                          <div className="flex items-center space-x-3">
-                            <Icon className="h-5 w-5 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm leading-tight">{agent.label}</div>
-                              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{agent.description}</div>
+                          <div className="flex items-center space-x-3 w-full">
+                            <Icon className="h-5 w-5 flex-shrink-0 text-primary" />
+                            <div className="flex-1 min-w-0 text-left">
+                              <div className="font-medium text-sm leading-tight truncate">{agent.label}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{agent.description}</div>
                             </div>
                           </div>
                         </SelectItem>
