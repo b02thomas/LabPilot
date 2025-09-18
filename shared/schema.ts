@@ -20,6 +20,7 @@ export const taskStatusEnum = pgEnum('task_status', ['submitted', 'in_progress',
 export const taskPriorityEnum = pgEnum('task_priority', ['low', 'standard', 'high', 'critical']);
 export const flagLevelEnum = pgEnum('flag_level', ['info', 'warning', 'critical']);
 export const userRoleEnum = pgEnum('user_role', ['admin', 'lab_manager', 'technician', 'analyst']);
+export const agentTypeEnum = pgEnum('agent_type', ['chemistry_expert', 'data_agent', 'lab_assistant', 'quality_control']);
 
 // Users table
 export const users = pgTable("users", {
@@ -29,6 +30,18 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   role: userRoleEnum("role").notNull().default('technician'),
   profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Projects table
+export const projects = pgTable("projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  teamMembers: text("team_members").array(),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -90,8 +103,16 @@ export const tasks = pgTable("tasks", {
 export const chatMessages = pgTable("chat_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
+  projectId: varchar("project_id").references(() => projects.id),
+  agentType: agentTypeEnum("agent_type").notNull().default('chemistry_expert'),
   message: text("message").notNull(),
   response: text("response"),
+  attachments: jsonb("attachments").$type<Array<{
+    fileName: string;
+    fileUrl: string;
+    fileType: string;
+    fileSize: number;
+  }>>(),
   context: jsonb("context"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -116,6 +137,15 @@ export const usersRelations = relations(users, ({ many }) => ({
   assignedTasks: many(tasks, { relationName: "assignedTasks" }),
   chatMessages: many(chatMessages),
   auditLogs: many(auditLogs),
+  projects: many(projects),
+}));
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  createdBy: one(users, {
+    fields: [projects.createdBy],
+    references: [users.id],
+  }),
+  chatMessages: many(chatMessages),
 }));
 
 export const experimentsRelations = relations(experiments, ({ one, many }) => ({
@@ -156,6 +186,10 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
     fields: [chatMessages.userId],
     references: [users.id],
   }),
+  project: one(projects, {
+    fields: [chatMessages.projectId],
+    references: [projects.id],
+  }),
 }));
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
@@ -167,6 +201,12 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProjectSchema = createInsertSchema(projects).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -202,6 +242,9 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
 
 export type Experiment = typeof experiments.$inferSelect;
 export type InsertExperiment = z.infer<typeof insertExperimentSchema>;

@@ -17,7 +17,7 @@ function Router() {
       <Route path="/data-upload" component={DataUpload} />
       <Route path="/analysis-results" component={AnalysisResults} />
       <Route path="/task-management" component={TaskManagement} />
-      <Route path="/chemistry-expert" component={ChemistryExpert} />
+      <Route path="/agent-chat-hub" component={ChemistryExpert} />
       <Route component={NotFound} />
     </Switch>
   );
