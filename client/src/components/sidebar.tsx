@@ -8,21 +8,32 @@ import {
   Bot,
   Settings,
   FlaskConical,
-  LogOut
+  LogOut,
+  ChevronDown,
+  Building2
 } from "lucide-react";
 import logoImage from "@assets/Gemini_Generated_Image_cbisuycbisuycbis_1758200138344.png";
+import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: ChartLine },
   { name: "Data Upload", href: "/data-upload", icon: Upload },
   { name: "Analysis Results", href: "/analysis-results", icon: TestTubeDiagonal },
   { name: "Task Management", href: "/task-management", icon: ClipboardList },
-  { name: "Chemistry Expert", href: "/chemistry-expert", icon: Bot },
+  { name: "Agent Chat Hub", href: "/agent-chat-hub", icon: Bot },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const [location] = useLocation();
+  const [selectedProject, setSelectedProject] = useState("main-lab");
 
   return (
     <aside className="w-64 bg-card border-r border-border flex-shrink-0 flex flex-col h-screen">
@@ -39,6 +50,29 @@ export function Sidebar() {
             <h1 className="text-lg font-semibold">LabPilot</h1>
             <p className="text-xs text-muted-foreground">Lab Analysis Platform</p>
           </div>
+        </div>
+      </div>
+
+      {/* Context Switcher */}
+      <div className="p-4 border-b border-border">
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Project Context
+          </label>
+          <Select value={selectedProject} onValueChange={setSelectedProject}>
+            <SelectTrigger className="w-full" data-testid="context-switcher">
+              <div className="flex items-center space-x-2">
+                <Building2 className="h-4 w-4" />
+                <SelectValue placeholder="Select project" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="main-lab">Main Laboratory</SelectItem>
+              <SelectItem value="research-dept">Research Department</SelectItem>
+              <SelectItem value="quality-control">Quality Control</SelectItem>
+              <SelectItem value="development">Development Lab</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
       
