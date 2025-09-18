@@ -18,13 +18,17 @@ interface UploadedFile {
   createdAt: string;
 }
 
-export function FileUpload() {
+interface FileUploadProps {
+  selectedProjectId?: string | null;
+}
+
+export function FileUpload({ selectedProjectId }: FileUploadProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
 
   const { data: experiments = [], isLoading } = useQuery({
-    queryKey: ["/api/experiments"],
+    queryKey: ["/api/experiments", { userId: "user-1", projectId: selectedProjectId }],
     refetchInterval: 2000, // Poll for updates
   });
 
@@ -32,6 +36,9 @@ export function FileUpload() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
+      if (selectedProjectId) {
+        formData.append('projectId', selectedProjectId);
+      }
       
       const response = await apiRequest('POST', '/api/experiments/upload', formData);
       return response.json();

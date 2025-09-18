@@ -9,11 +9,12 @@ import {
 
 interface StatsCardsProps {
   className?: string;
+  selectedProjectId?: string | null;
 }
 
-export function StatsCards({ className }: StatsCardsProps) {
+export function StatsCards({ className, selectedProjectId }: StatsCardsProps) {
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["/api/dashboard/stats"],
+    queryKey: ["/api/dashboard/stats", { userId: "user-1", projectId: selectedProjectId }],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 

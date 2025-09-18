@@ -4,10 +4,12 @@ import { Header } from "@/components/header";
 import { FileUpload } from "@/components/file-upload";
 import { ChemistryChat } from "@/components/chemistry-chat";
 import { AnalysisModal } from "@/components/analysis-modal";
+import { ProjectSelector } from "@/components/project-selector";
 import { StatsCards, QuickActionsCard, RecentAnalysisCard } from "@/components/dashboard";
 
 export default function Dashboard() {
   const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const handleNewAnalysis = () => {
     // Navigate to data upload or show modal
@@ -29,13 +31,25 @@ export default function Dashboard() {
         />
 
         <div className="p-6 space-y-6">
-          {/* Dashboard Stats Cards */}
-          <StatsCards />
+          {/* Project Management */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-1">
+              <ProjectSelector 
+                selectedProjectId={selectedProjectId} 
+                onProjectChange={setSelectedProjectId} 
+              />
+            </div>
+            
+            {/* Dashboard Stats Cards */}
+            <div className="lg:col-span-3">
+              <StatsCards selectedProjectId={selectedProjectId} />
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* File Upload Section */}
             <div className="lg:col-span-2">
-              <FileUpload />
+              <FileUpload selectedProjectId={selectedProjectId} />
             </div>
 
             {/* Chemistry Expert Chat & Quick Actions */}
@@ -48,7 +62,10 @@ export default function Dashboard() {
           </div>
 
           {/* Recent Analysis Results */}
-          <RecentAnalysisCard onViewDetails={setSelectedExperimentId} />
+          <RecentAnalysisCard 
+            selectedProjectId={selectedProjectId}
+            onViewDetails={setSelectedExperimentId} 
+          />
         </div>
       </main>
 

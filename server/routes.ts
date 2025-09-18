@@ -70,6 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create experiment record
+      const projectId = req.body.projectId || null;
       const experimentData = insertExperimentSchema.parse({
         filename: file.filename,
         originalFilename: file.originalname,
@@ -78,6 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         analysisType,
         status: 'processing',
         uploadedBy: userId,
+        projectId: projectId,
         metadata: {
           uploadTime: new Date().toISOString(),
           mimeType: file.mimetype

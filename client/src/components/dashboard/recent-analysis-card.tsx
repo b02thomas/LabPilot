@@ -5,10 +5,11 @@ import { Download } from "lucide-react";
 
 interface RecentAnalysisCardProps {
   className?: string;
+  selectedProjectId?: string | null;
   onViewDetails?: (experimentId: string) => void;
 }
 
-export function RecentAnalysisCard({ className, onViewDetails }: RecentAnalysisCardProps) {
+export function RecentAnalysisCard({ className, selectedProjectId, onViewDetails }: RecentAnalysisCardProps) {
   return (
     <Card className={className}>
       <CardContent className="p-6">
@@ -27,7 +28,7 @@ export function RecentAnalysisCard({ className, onViewDetails }: RecentAnalysisC
           </div>
         </div>
         
-        <DataTable onViewDetails={onViewDetails || (() => {})} />
+        <DataTable selectedProjectId={selectedProjectId} onViewDetails={onViewDetails || (() => {})} />
       </CardContent>
     </Card>
   );

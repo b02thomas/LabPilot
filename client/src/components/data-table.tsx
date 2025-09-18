@@ -21,12 +21,13 @@ interface Experiment {
 }
 
 interface DataTableProps {
+  selectedProjectId?: string | null;
   onViewDetails: (experimentId: string) => void;
 }
 
-export function DataTable({ onViewDetails }: DataTableProps) {
+export function DataTable({ selectedProjectId, onViewDetails }: DataTableProps) {
   const { data: experiments = [], isLoading } = useQuery({
-    queryKey: ["/api/experiments"],
+    queryKey: ["/api/experiments", { userId: "user-1", projectId: selectedProjectId }],
   });
 
   const downloadReport = async (experimentId: string, filename: string) => {

@@ -14,8 +14,8 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
+    headers: data instanceof FormData ? {} : data ? { "Content-Type": "application/json" } : {},
+    body: data instanceof FormData ? data : data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
 
@@ -29,7 +29,24 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const [url, params] = queryKey;
+    let fetchUrl = url as string;
+    
+    // If there are query parameters, serialize them properly
+    if (params && typeof params === 'object') {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          searchParams.append(key, String(value));
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        fetchUrl = `${url}?${queryString}`;
+      }
+    }
+    
+    const res = await fetch(fetchUrl, {
       credentials: "include",
     });
 
