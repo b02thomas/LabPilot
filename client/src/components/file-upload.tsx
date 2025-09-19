@@ -7,16 +7,7 @@ import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
-interface UploadedFile {
-  id: string;
-  filename: string;
-  status: string;
-  fileSize: number;
-  analysisType: string;
-  flags?: any[];
-  createdAt: string;
-}
+import type { ExperimentListItem } from "@shared/types/api";
 
 interface FileUploadProps {
   selectedProjectId?: string | null;
@@ -27,7 +18,7 @@ export function FileUpload({ selectedProjectId }: FileUploadProps) {
   const queryClient = useQueryClient();
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
 
-  const { data: experiments = [], isLoading } = useQuery({
+  const { data: experiments = [], isLoading } = useQuery<ExperimentListItem[]>({
     queryKey: ["/api/experiments", { userId: "user-1", projectId: selectedProjectId }],
     refetchInterval: 2000, // Poll for updates
   });
@@ -110,10 +101,10 @@ export function FileUpload({ selectedProjectId }: FileUploadProps) {
     }
   };
 
-  const getStatusBadge = (experiment: UploadedFile) => {
+  const getStatusBadge = (experiment: ExperimentListItem) => {
     const flags = experiment.flags || [];
-    const criticalFlags = flags.filter(f => f.level === 'critical').length;
-    const warningFlags = flags.filter(f => f.level === 'warning').length;
+    const criticalFlags = flags.filter((f: any) => f.level === 'critical').length;
+    const warningFlags = flags.filter((f: any) => f.level === 'warning').length;
 
     if (experiment.status === 'processing') {
       return <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">Processing</span>;
@@ -168,7 +159,7 @@ export function FileUpload({ selectedProjectId }: FileUploadProps) {
             <div className="text-sm text-muted-foreground">No files uploaded yet.</div>
           ) : (
             <div className="space-y-2">
-              {experiments.slice(0, 5).map((experiment: UploadedFile) => (
+              {experiments.slice(0, 5).map((experiment) => (
                 <div
                   key={experiment.id}
                   className="flex items-center justify-between p-3 bg-muted rounded-md"
@@ -179,7 +170,7 @@ export function FileUpload({ selectedProjectId }: FileUploadProps) {
                       {getStatusIcon(experiment.status)}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{experiment.filename}</p>
+                      <p className="text-sm font-medium">{experiment.originalFilename}</p>
                       <p className="text-xs text-muted-foreground">
                         {experiment.status === 'processing' ? 'Processing...' : 'Processing complete'} • {(experiment.fileSize / 1024 / 1024).toFixed(1)} MB
                       </p>
@@ -189,7 +180,7 @@ export function FileUpload({ selectedProjectId }: FileUploadProps) {
                     {getStatusBadge(experiment)}
                     {experiment.status === 'completed' && (
                       <button
-                        onClick={() => downloadReport(experiment.id, experiment.filename)}
+                        onClick={() => downloadReport(experiment.id, experiment.originalFilename)}
                         className="text-muted-foreground hover:text-foreground"
                         data-testid={`button-download-${experiment.id}`}
                       >

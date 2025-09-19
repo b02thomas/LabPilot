@@ -9,16 +9,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useQuery } from "@tanstack/react-query";
+import { useExperiments } from "@/hooks/useQueries";
+import { ExperimentErrorBoundary } from "@/components/error-boundary";
+import type { ExperimentListItem } from "@shared/types/api";
 
-interface Experiment {
-  id: string;
-  originalFilename: string;
-  analysisType: string;
-  status: string;
-  createdAt: string;
-  flags?: any[];
-}
 
 interface DataTableProps {
   selectedProjectId?: string | null;
@@ -26,9 +20,7 @@ interface DataTableProps {
 }
 
 export function DataTable({ selectedProjectId, onViewDetails }: DataTableProps) {
-  const { data: experiments = [], isLoading } = useQuery({
-    queryKey: ["/api/experiments", { userId: "user-1", projectId: selectedProjectId }],
-  });
+  const { data: experiments = [], isLoading, error } = useExperiments(selectedProjectId);
 
   const downloadReport = async (experimentId: string, filename: string) => {
     try {
@@ -129,7 +121,8 @@ export function DataTable({ selectedProjectId, onViewDetails }: DataTableProps) 
   }
 
   return (
-    <div className="overflow-x-auto">
+    <ExperimentErrorBoundary>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -142,7 +135,7 @@ export function DataTable({ selectedProjectId, onViewDetails }: DataTableProps) 
           </TableRow>
         </TableHeader>
         <TableBody>
-          {experiments.map((experiment: Experiment) => (
+          {experiments.map((experiment: ExperimentListItem) => (
             <TableRow key={experiment.id} className="hover:bg-accent/50">
               <TableCell>
                 <div className="flex items-center space-x-2">
@@ -160,11 +153,11 @@ export function DataTable({ selectedProjectId, onViewDetails }: DataTableProps) 
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1 flex-wrap">
-                  {getFlagsBadges(experiment.flags)}
+                  {getFlagsBadges(experiment.flags || [])}
                 </div>
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {formatTimeAgo(experiment.createdAt)}
+                {formatTimeAgo(experiment.createdAt || new Date().toISOString())}
               </TableCell>
               <TableCell>
                 <div className="flex items-center space-x-2">
@@ -192,6 +185,7 @@ export function DataTable({ selectedProjectId, onViewDetails }: DataTableProps) 
           ))}
         </TableBody>
       </Table>
-    </div>
+      </div>
+    </ExperimentErrorBoundary>
   );
 }

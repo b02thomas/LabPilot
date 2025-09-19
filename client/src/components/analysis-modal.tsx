@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import type { ExperimentWithReport } from "@shared/types/api";
 
 interface AnalysisModalProps {
   experimentId: string | null;
@@ -19,7 +20,7 @@ interface AnalysisModalProps {
 export function AnalysisModal({ experimentId, isOpen, onClose }: AnalysisModalProps) {
   const { toast } = useToast();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<ExperimentWithReport>({
     queryKey: ["/api/experiments", experimentId],
     enabled: !!experimentId && isOpen,
   });
@@ -33,7 +34,7 @@ export function AnalysisModal({ experimentId, isOpen, onClose }: AnalysisModalPr
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${data?.experiment?.originalFilename}_report.json`;
+      a.download = `${data?.originalFilename}_report.json`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -48,10 +49,10 @@ export function AnalysisModal({ experimentId, isOpen, onClose }: AnalysisModalPr
   };
 
   const shareResults = () => {
-    if (navigator.share && data?.experiment) {
+    if (navigator.share && data) {
       navigator.share({
-        title: `Analysis Results - ${data.experiment.originalFilename}`,
-        text: `Analysis complete for ${data.experiment.originalFilename}`,
+        title: `Analysis Results - ${data.originalFilename}`,
+        text: `Analysis complete for ${data.originalFilename}`,
         url: window.location.href,
       }).catch(console.error);
     } else {
@@ -71,7 +72,7 @@ export function AnalysisModal({ experimentId, isOpen, onClose }: AnalysisModalPr
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>Analysis Details - {data?.experiment?.originalFilename}</span>
+            <span>Analysis Details - {data?.originalFilename}</span>
             <Button variant="ghost" size="sm" onClick={onClose} data-testid="button-close-modal">
               <X className="h-4 w-4" />
             </Button>
@@ -87,16 +88,16 @@ export function AnalysisModal({ experimentId, isOpen, onClose }: AnalysisModalPr
               <div>
                 <h4 className="font-medium text-sm">File Information</h4>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Type: {data?.experiment?.analysisType?.replace('_', ' ')}
+                  Type: {data?.analysisType?.replace('_', ' ')}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Status: {data?.experiment?.status}
+                  Status: {data?.status}
                 </p>
               </div>
               <div>
                 <h4 className="font-medium text-sm">Processing Info</h4>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Processed: {new Date(data?.experiment?.createdAt).toLocaleString()}
+                  Processed: {data?.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}
                 </p>
                 {data?.report?.processingTime && (
                   <p className="text-sm text-muted-foreground">
@@ -119,14 +120,14 @@ export function AnalysisModal({ experimentId, isOpen, onClose }: AnalysisModalPr
             {/* Mock Data Visualization */}
             <div className="bg-muted rounded-lg p-6">
               <h4 className="font-medium mb-4">
-                {data?.experiment?.analysisType === 'chromatography' ? 'Chromatography Results' : 'Analysis Results'}
+                {data?.analysisType === 'chromatography' ? 'Chromatography Results' : 'Analysis Results'}
               </h4>
               <div className="h-64 flex items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded">
                 <div className="text-center">
                   <div className="text-4xl mb-2">📊</div>
                   <p>Interactive data visualization would be displayed here</p>
                   <p className="text-sm">
-                    {data?.experiment?.analysisType === 'chromatography' 
+                    {data?.analysisType === 'chromatography' 
                       ? 'Peak detection, baseline correction, and quantification results'
                       : 'Data analysis and statistical results'
                     }

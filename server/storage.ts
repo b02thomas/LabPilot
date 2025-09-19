@@ -27,6 +27,7 @@ import { eq, desc, and, or, count, sql } from "drizzle-orm";
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User>;
   
@@ -72,6 +73,11 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
   }
 
@@ -328,6 +334,14 @@ export class DatabaseStorage implements IStorage {
       completedToday: completedTodayResult.count,
       totalTimeSaved,
     };
+  }
+
+  async testConnection(): Promise<void> {
+    try {
+      await db.select().from(users).limit(1);
+    } catch (error) {
+      throw new Error("Database connection test failed");
+    }
   }
 }
 

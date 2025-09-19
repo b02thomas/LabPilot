@@ -1,5 +1,6 @@
 import { Bell, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UserProfile } from "@/components/user-profile";
 
 interface HeaderProps {
   title: string;
@@ -36,6 +37,7 @@ export function Header({ title, description, actionButton }: HeaderProps) {
               {actionButton.text}
             </Button>
           )}
+          <UserProfile />
         </div>
       </div>
     </header>

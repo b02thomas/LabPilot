@@ -1,11 +1,13 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
+import { useDashboardStats } from "@/hooks/useQueries";
+import { DashboardErrorBoundary } from "@/components/error-boundary";
 import { 
   TestTubeDiagonal, 
   AlertTriangle, 
   CheckCircle, 
   Clock,
 } from "lucide-react";
+import type { DashboardStats } from "@shared/types/api";
 
 interface StatsCardsProps {
   className?: string;
@@ -13,15 +15,12 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ className, selectedProjectId }: StatsCardsProps) {
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["/api/dashboard/stats", { userId: "user-1", projectId: selectedProjectId }],
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
+  const { data: stats, isLoading: statsLoading } = useDashboardStats(selectedProjectId);
 
   const statItems = [
     {
       title: "Active Analyses",
-      value: (stats as any)?.activeAnalyses || 0,
+      value: stats?.activeAnalyses || 0,
       icon: TestTubeDiagonal,
       testId: "stat-active-analyses",
       bgColor: "bg-primary/10",
@@ -29,7 +28,7 @@ export function StatsCards({ className, selectedProjectId }: StatsCardsProps) {
     },
     {
       title: "Critical Alerts",
-      value: (stats as any)?.criticalAlerts || 0,
+      value: stats?.criticalAlerts || 0,
       icon: AlertTriangle,
       testId: "stat-critical-alerts",
       bgColor: "bg-destructive/10",
@@ -38,7 +37,7 @@ export function StatsCards({ className, selectedProjectId }: StatsCardsProps) {
     },
     {
       title: "Completed Today",
-      value: (stats as any)?.completedToday || 0,
+      value: stats?.completedToday || 0,
       icon: CheckCircle,
       testId: "stat-completed-today",
       bgColor: "bg-green-100",
@@ -47,7 +46,7 @@ export function StatsCards({ className, selectedProjectId }: StatsCardsProps) {
     },
     {
       title: "Time Saved",
-      value: `${(stats as any)?.totalTimeSaved?.toFixed(1) || 0}h`,
+      value: `${stats?.totalTimeSaved?.toFixed(1) || 0}h`,
       icon: Clock,
       testId: "stat-time-saved",
       bgColor: "bg-blue-100",
@@ -56,7 +55,8 @@ export function StatsCards({ className, selectedProjectId }: StatsCardsProps) {
   ];
 
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 ${className || ""}`}>
+    <DashboardErrorBoundary>
+      <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 ${className || ""}`}>
       {statItems.map((item) => (
         <Card key={item.title}>
           <CardContent className="p-4">
@@ -77,6 +77,7 @@ export function StatsCards({ className, selectedProjectId }: StatsCardsProps) {
           </CardContent>
         </Card>
       ))}
-    </div>
+      </div>
+    </DashboardErrorBoundary>
   );
 }

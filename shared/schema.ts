@@ -26,10 +26,18 @@ export const agentTypeEnum = pgEnum('agent_type', ['chemistry_expert', 'data_age
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").notNull().unique(),
+  passwordHash: varchar("password_hash").notNull(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   role: userRoleEnum("role").notNull().default('technician'),
   profileImageUrl: varchar("profile_image_url"),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  emailVerificationToken: varchar("email_verification_token"),
+  passwordResetToken: varchar("password_reset_token"),
+  passwordResetExpires: timestamp("password_reset_expires"),
+  lastLoginAt: timestamp("last_login_at"),
+  loginAttempts: integer("login_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -132,6 +140,13 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Sessions table for express-session storage
+export const sessions = pgTable("session", {
+  sid: varchar("sid").primaryKey(),
+  sess: jsonb("sess").notNull(),
+  expire: timestamp("expire", { mode: 'date' }).notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   experiments: many(experiments),
@@ -216,7 +231,15 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  emailVerificationToken: true,
+  passwordResetToken: true,
+  passwordResetExpires: true,
+  lastLoginAt: true,
+  loginAttempts: true,
+  lockedUntil: true,
 });
+
+export const insertSessionSchema = createInsertSchema(sessions);
 
 export const insertProjectSchema = createInsertSchema(projects).omit({
   id: true,
@@ -272,3 +295,6 @@ export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+export type Session = typeof sessions.$inferSelect;
+export type InsertSession = z.infer<typeof insertSessionSchema>;

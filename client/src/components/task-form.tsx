@@ -68,10 +68,10 @@ export function TaskForm() {
       return;
     }
     
-    // Convert date string to Date object for API
+    // Keep deadline as string for API
     const submitData = {
       ...formData,
-      deadline: formData.deadline ? new Date(formData.deadline) : undefined,
+      deadline: formData.deadline || '',
     };
     
     submitTaskMutation.mutate(submitData);
